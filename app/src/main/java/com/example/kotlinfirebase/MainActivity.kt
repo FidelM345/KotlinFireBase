@@ -22,7 +22,6 @@ class MainActivity : AppCompatActivity() {
     val personTable = Firebase.firestore.collection("person_table")
 
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -35,9 +34,15 @@ class MainActivity : AppCompatActivity() {
         save.setOnClickListener {
 
 
-            if (!fname.text.toString().isNullOrEmpty() && !lname.text.toString().isNullOrEmpty() && !age.text.toString().isNullOrEmpty()) {
+            if (!fname.text.toString().isNullOrEmpty() && !lname.text.toString()
+                    .isNullOrEmpty() && !age.text.toString().isNullOrEmpty()
+            ) {
 
-                val person = Person(fname.text.toString(), lname.text.toString(), age.text.toString().toInt())
+                val person = Person(
+                    fname.text.toString(),
+                    lname.text.toString(),
+                    age.text.toString().toInt()
+                )
 
 
                 savePerson(person)
@@ -46,7 +51,8 @@ class MainActivity : AppCompatActivity() {
 
             } else {
 
-                Toast.makeText(this, "Please fill all the field to save data", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please fill all the field to save data", Toast.LENGTH_SHORT)
+                    .show()
             }
 
 
@@ -58,46 +64,50 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-      //  realtimeUpdates()
+        //  realtimeUpdates()
 
 
         update.setOnClickListener {
 
-            val fname1=fname.text.toString()
-            performUpdate(fname1,getUpdatePersonData())
+            val fname1 = fname.text.toString()
+            performUpdate(fname1, getUpdatePersonData())
             cleartext()
-
 
 
         }
 
+        delete.setOnClickListener {
+            val fname1 = fname.text.toString()
+
+            deleteData(fname1, getUpdatePersonData())
+        }
 
 
     }
 
 
-    fun getUpdatePersonData(): Map<String,Any>{
+    fun getUpdatePersonData(): Map<String, Any> {
 
-        val map= mutableMapOf<String, Any>()
-        val fname=fname.text.toString()
-        val lname=lname.text.toString()
-        val age=age.text.toString()
+        val map = mutableMapOf<String, Any>()
+        val fname = fname.text.toString()
+        val lname = lname.text.toString()
+        val age = age.text.toString()
 
-   /*     isNullOrEmpty() returns true for a string with no characters and/or zero length as @Wyck commented. It will return false for whitespace.
+        /*     isNullOrEmpty() returns true for a string with no characters and/or zero length as @Wyck commented. It will return false for whitespace.
 
-        isNullOrBlank() returns true for a string with no characters and/or zero length just as*/
+             isNullOrBlank() returns true for a string with no characters and/or zero length just as*/
 
 
-        if (!fname.isNullOrBlank()){
-            map["fname"]=fname
+        if (!fname.isNullOrBlank()) {
+            map["fname"] = fname
         }
 
-        if (!lname.isNullOrBlank()){
-            map["lname"]=lname
+        if (!lname.isNullOrBlank()) {
+            map["lname"] = lname
         }
 
-        if (!age.isNullOrBlank()){
-            map["age"]=age.toInt()
+        if (!age.isNullOrBlank()) {
+            map["age"] = age.toInt()
         }
 
         return map
@@ -119,132 +129,225 @@ class MainActivity : AppCompatActivity() {
     }
 */
 
-    fun performUpdate( fname1: String,newPersonMap: Map<String,Any>)= CoroutineScope(Dispatchers.IO).launch {
+
+    fun deleteData(fname1: String, newPersonMap: Map<String, Any>) =
+        CoroutineScope(Dispatchers.IO).launch {
+
+
+            Log.d("mato", "the fname value is: $fname1")
+
+            if (!fname1.isNullOrBlank()) {
+
+                val documentQueryResults = personTable
+                    .whereEqualTo("fname", fname1)
+                    /*.whereEqualTo("lname",oldPerson.lname)
+                    .whereEqualTo("age",oldPerson.age)*/
+                    .get()
+                    .await()
 
 
 
-        Log.d("mato", "the fname value is: $fname1")
+                if (!documentQueryResults.isEmpty) {
 
-        if (!fname1.isNullOrBlank()){
-
-            val documentQueryResults= personTable
-                .whereEqualTo("fname",fname1)
-                /*.whereEqualTo("lname",oldPerson.lname)
-                .whereEqualTo("age",oldPerson.age)*/
-                .get()
-                .await()
+                    for (doucument in documentQueryResults) {
 
 
+                        try {
 
-            if (!documentQueryResults.isEmpty){
+                            personTable.document(doucument.id).delete().await()
 
-                for (doucument in documentQueryResults){
+                            withContext(Dispatchers.Main) {
 
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Data is successfully deleted",
+                                    Toast.LENGTH_SHORT
+                                ).show()
 
-                    try {
+                            }
 
-                        personTable.document(doucument.id).set(newPersonMap,
-                            SetOptions.merge() //ensures fields that will not be updated will not also be deleted from the DB
-                        ).await()
+                        } catch (e: Exception) {
 
-                        withContext(Dispatchers.Main){
-
-                            Toast.makeText(this@MainActivity, "Data is successfully updated", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
 
                         }
 
-                    }catch (e:Exception){
 
-                        Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
+                    }
+
+
+                } else {
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "The person is not in the database",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
                     }
 
 
                 }
 
+            } else {
 
 
-            }else {
-
-                withContext(Dispatchers.Main){
-                    Toast.makeText(this@MainActivity, "The person is not in the database", Toast.LENGTH_SHORT).show()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Enter the name to be deleted",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
                 }
 
 
             }
 
-        }else{
+
+        }
 
 
-            withContext(Dispatchers.Main){
-                Toast.makeText(this@MainActivity, "Enter the name to be changed", Toast.LENGTH_SHORT).show()
+    fun performUpdate(fname1: String, newPersonMap: Map<String, Any>) =
+        CoroutineScope(Dispatchers.IO).launch {
+
+
+            Log.d("mato", "the fname value is: $fname1")
+
+            if (!fname1.isNullOrBlank()) {
+
+                val documentQueryResults = personTable
+                    .whereEqualTo("fname", fname1)
+                    /*.whereEqualTo("lname",oldPerson.lname)
+                    .whereEqualTo("age",oldPerson.age)*/
+                    .get()
+                    .await()
+
+
+
+                if (!documentQueryResults.isEmpty) {
+
+                    for (doucument in documentQueryResults) {
+
+
+                        try {
+
+                            personTable.document(doucument.id).set(
+                                newPersonMap,
+                                SetOptions.merge() //ensures fields that will not be updated will not also be deleted from the DB
+                            ).await()
+
+                            withContext(Dispatchers.Main) {
+
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Data is successfully updated",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                            }
+
+                        } catch (e: Exception) {
+
+                            Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
+
+                        }
+
+
+                    }
+
+
+                } else {
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "The person is not in the database",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                    }
+
+
+                }
+
+            } else {
+
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Enter the name to be changed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                }
+
 
             }
-
 
 
         }
 
 
-    }
-
-
     //get realtime data from the database
-    fun realtimeUpdates(){
+    fun realtimeUpdates() {
 
-        personTable.addSnapshotListener{ snapshot, error->
+        personTable.addSnapshotListener { snapshot, error ->
 
             error?.let {
                 Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
                 return@addSnapshotListener//this will terminate the program
             }
 
-            snapshot?.let {it ->
+            snapshot?.let { it ->
 
-                val sb=StringBuilder()
+                val sb = StringBuilder()
 
-                for (document in it){
+                for (document in it) {
 
                     //val person=document.toObject(Person::class.java) can also work with java classed
 
                     //converting the retrieved documents to objects
-                    val person=document.toObject<Person>() //works with firestore-ktx extension only
+                    val person =
+                        document.toObject<Person>() //works with firestore-ktx extension only
 
                     sb.append("$person\n")
                 }
 
-                show_data.text=sb.toString() //convert string buffer to string an set it to the text field
+                show_data.text =
+                    sb.toString() //convert string buffer to string an set it to the text field
 
             }
 
         }
     }
 
-    fun  retrievePerson()= CoroutineScope(Dispatchers.IO).launch {
+    fun retrievePerson() = CoroutineScope(Dispatchers.IO).launch {
 
         try {
-            val querSnapshot=personTable.get().await()
-            val sb=StringBuilder()
+            val querSnapshot = personTable.get().await()
+            val sb = StringBuilder()
 
-            for (document in querSnapshot){
+            for (document in querSnapshot) {
 
                 //val person=document.toObject(Person::class.java) can also work with java classed
 
                 //converting the retrieved documents to objects
-                val person=document.toObject<Person>() //works with firestore-ktx extension only
+                val person = document.toObject<Person>() //works with firestore-ktx extension only
 
                 sb.append("$person\n")
             }
 
-            withContext(Dispatchers.Main){
+            withContext(Dispatchers.Main) {
 
-                show_data.text=sb.toString() //convert string buffer to string an set it to the text field
+                show_data.text =
+                    sb.toString() //convert string buffer to string an set it to the text field
             }
 
 
-
-        }catch (e: Exception){
+        } catch (e: Exception) {
 
             Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_SHORT).show()
 
@@ -260,16 +363,23 @@ class MainActivity : AppCompatActivity() {
 
                 personTable.add(person).await()
 
-                withContext(Dispatchers.Main){
+                withContext(Dispatchers.Main) {
 
-                    Toast.makeText(this@MainActivity, "Successfully saved the data", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Successfully saved the data",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
 
             } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, " The error is : ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@MainActivity,
+                    " The error is : ${e.localizedMessage}",
+                    Toast.LENGTH_SHORT
+                ).show()
 
             }
-
 
 
         }
@@ -278,7 +388,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     //clear all edit text fields after data is saved to DB
-    fun cleartext(){
+    fun cleartext() {
 
         fname.text.clear()
         lname.text.clear()
